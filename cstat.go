@@ -8,7 +8,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/lufia/iostat"
+	"github.com/shirou/gopsutil/cpu"
 )
 
 var duration = flag.Duration("for", 365*24*time.Hour, "How long to poll until exiting")
@@ -23,7 +23,7 @@ func main() {
 	header()
 	start := time.Now()
 	lastSample := start
-	sst, err := iostat.ReadCPUStats()
+	sst, err := cpu.Times(false)
 	if err != nil {
 		panic(err)
 	}
@@ -47,7 +47,7 @@ func main() {
 		}
 		time.Sleep(*poll)
 
-		st, err := iostat.ReadCPUStats()
+		st, err := cpu.Times(false)
 		if err != nil {
 			panic(err)
 		}
@@ -63,9 +63,11 @@ func header() {
 	}
 }
 
-func display(pst *iostat.CPUStats, st *iostat.CPUStats, start time.Time, last time.Time) {
+func display(psta []cpu.TimesStat, sta []cpu.TimesStat, start time.Time, last time.Time) {
+	pst := psta[0]
+	st := sta[0]
 	idle := st.Idle - pst.Idle
-	total := (st.User + st.Nice + st.Sys + st.Idle) - (pst.User + pst.Nice + pst.Sys + pst.Idle)
+	total := (st.User + st.Nice + st.System + st.Idle) - (pst.User + pst.Nice + pst.System + pst.Idle)
 	busy := total - idle
 
 	if *justBusy {
@@ -74,7 +76,7 @@ func display(pst *iostat.CPUStats, st *iostat.CPUStats, start time.Time, last ti
 		fmt.Printf("%d\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f\n",
 			int64(last.Sub(start).Milliseconds())/1000,
 			float64(busy)/float64(total)*100,
-			float64(st.Sys-pst.Sys)/float64(total)*100,
+			float64(st.System-pst.System)/float64(total)*100,
 			float64(st.User-pst.User)/float64(total)*100,
 			float64(st.Nice-pst.Nice)/float64(total)*100,
 			float64(st.Idle-pst.Idle)/float64(total)*100,
@@ -82,7 +84,7 @@ func display(pst *iostat.CPUStats, st *iostat.CPUStats, start time.Time, last ti
 	}
 }
 
-func total(pst *iostat.CPUStats, st *iostat.CPUStats, start time.Time, last time.Time) {
+func total(pst []cpu.TimesStat, st []cpu.TimesStat, start time.Time, last time.Time) {
 	if *showTotal {
 		fmt.Printf("\n\nmeasured average over %s\n", last.Sub(start))
 		header()
