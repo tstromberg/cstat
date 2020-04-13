@@ -18,7 +18,7 @@ elapsed	busy%	sys%	user%	nice%	idle%
 Just show the busy column, polling every 5 seconds for up to 5 minutes:
 
 ```
-$ go run . --wait 5s --for 5m --busy --header=false
+$ go run . --poll 5s --for 5m --busy --header=false
 10.734
 7.532
 9.400

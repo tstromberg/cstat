@@ -11,8 +11,8 @@ import (
 	"github.com/lufia/iostat"
 )
 
-var duration = flag.Duration("for", 365*24*time.Hour, "How long to wait until exiting")
-var wait = flag.Duration("wait", 1*time.Second, "How often to poll")
+var duration = flag.Duration("for", 365*24*time.Hour, "How long to poll until exiting")
+var poll = flag.Duration("poll", 1*time.Second, "How often to poll")
 var showHeader = flag.Bool("header", true, "show header")
 var justBusy = flag.Bool("busy", false, "just show busy score")
 var showTotal = flag.Bool("total", true, "show total at end")
@@ -45,7 +45,7 @@ func main() {
 			total(sst, pst, start, lastSample)
 			os.Exit(0)
 		}
-		time.Sleep(*wait)
+		time.Sleep(*poll)
 
 		st, err := iostat.ReadCPUStats()
 		if err != nil {
