@@ -1,6 +1,6 @@
 # cstat
 
-A more civilized iostat (I wanted floating point numbers)
+A more civilized iostat, with 100x more precision.
 
 This has only been tested so far on macOS.
 
