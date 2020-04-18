@@ -1,2 +1,4 @@
+github.com/gocarina/gocsv v0.0.0-20200330101823-46266ca37bd3 h1:B7k6N+JlLM/u1xrIkpifUfE7GRJsZIYHoHbiAa5cSP4=
+github.com/gocarina/gocsv v0.0.0-20200330101823-46266ca37bd3/go.mod h1:5YoVOkjYAQumqlV356Hj3xeYh4BdZuLE0/nRkf2NKkI=
 github.com/lufia/iostat v1.1.0 h1:Z1wa4Hhxwi8uSKfgRsFc5RLtt3SuFPIOgkiPGkUtHDY=
 github.com/lufia/iostat v1.1.0/go.mod h1:rEPNA0xXgjHQjuI5Cy05sLlS2oRcSlWHRLrvh/AQ+Pg=
