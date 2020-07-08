@@ -4,13 +4,13 @@
 readonly TESTS=$1
 
 # How many iterations to cycle through
-readonly TEST_ITERATIONS=4
+readonly TEST_ITERATIONS=30
 
 # How long to poll CPU usage for (each point is an average over this period)
 readonly POLL_DURATION=5s
 
 # How long to measure background usage for.
-readonly TOTAL_DURATION=60s
+readonly TOTAL_DURATION=90s
 
 # How all tests will be identified
 readonly SESSION_ID="$(date +%Y%m%d-%H%M%S)-$$"
