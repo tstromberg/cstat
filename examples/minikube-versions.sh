@@ -5,7 +5,7 @@
 readonly VERSIONS=$*
 
 # How many iterations to cycle through
-readonly TEST_ITERATIONS=10
+readonly TEST_ITERATIONS=15
 
 # How long to poll CPU usage for (each point is an average over this period)
 readonly POLL_DURATION=5s
@@ -33,7 +33,7 @@ measure() {
 cleanup() {
   echo "  >> Deleting local clusters ..."
 
-  minikube delete --all 2>/dev/null >/dev/null
+  /tmp/minikube-v1.10.0 delete --all 2>/dev/null >/dev/null
   sleep 5
   pause_if_running_apps
 }
@@ -71,15 +71,18 @@ pause_if_running_apps() {
 
 
 main() {
+  cleanup
+
   echo "Turning on Wi-Fi for downloads"
   networksetup -setairportpower Wi-Fi on
+  sleep 15
 
   for version in ${VERSIONS}; do
     target="/tmp/minikube-${version}"
     echo "-> Downloading ${version} to ${target}"
     curl -L -C - -o "${target}" https://storage.googleapis.com/minikube/releases/${version}/minikube-darwin-amd64
     chmod 755 "${target}"
-    "${target}" start --download-only
+    "${target}" start --download-only --kubernetes-version=v1.17.3
   done
 
   echo "Turning off Wi-Fi to remove background noise"
@@ -104,7 +107,7 @@ main() {
 
    for version in ${VERSIONS}; do
       echo "-> minikube ${version} --driver=${driver}"
-      time "${target}" start --driver "${driver}" -p "${driver}$$" && measure "minikube_hyperkit_${version}" $i
+      time "${target}" start --driver "${driver}" --kubernetes-version=v1.17.3 -p "${driver}$$" && measure "minikube_hyperkit_${version}" $i
       cleanup
    done
  
