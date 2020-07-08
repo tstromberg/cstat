@@ -5,12 +5,12 @@
 readonly VERSIONS=$*
 
 # How many iterations to cycle through
-readonly TEST_ITERATIONS=15
+readonly TEST_ITERATIONS=10
 
 # How long to poll CPU usage for (each point is an average over this period)
 readonly POLL_DURATION=5s
 
-readonly TOTAL_DURATION=7m
+readonly TOTAL_DURATION=5m
 
 # How all tests will be identified
 readonly SESSION_ID="$(date +%Y%m%d-%H%M%S)-$$"
@@ -93,6 +93,8 @@ main() {
 
     target="/tmp/minikube-${version}"
     driver=hyperkit
+
+    measure "idle" $i
 
    for version in ${VERSIONS}; do
       echo "-> minikube ${version} --driver=${driver}"
