@@ -10,7 +10,7 @@ readonly TEST_ITERATIONS=15
 # How long to poll CPU usage for (each point is an average over this period)
 readonly POLL_DURATION=5s
 
-readonly TOTAL_DURATION=4m
+readonly TOTAL_DURATION=7m
 
 # How all tests will be identified
 readonly SESSION_ID="$(date +%Y%m%d-%H%M%S)-$$"
