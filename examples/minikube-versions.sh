@@ -71,6 +71,9 @@ pause_if_running_apps() {
 
 
 main() {
+  echo "Turning on Wi-Fi for downloads"
+  networksetup -setairportpower Wi-Fi on
+
   for version in ${VERSIONS}; do
     target="/tmp/minikube-${version}"
     echo "-> Downloading ${version} to ${target}"
@@ -78,6 +81,9 @@ main() {
     chmod 755 "${target}"
     "${target}" start --download-only
   done
+
+  echo "Turning off Wi-Fi to remove background noise"
+  networksetup -setairportpower Wi-Fi off
 
   pause_if_running_apps
   echo "Session ID: ${SESSION_ID}"
