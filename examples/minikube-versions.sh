@@ -10,10 +10,10 @@ readonly TEST_ITERATIONS=15
 # How long to poll CPU usage for (each point is an average over this period)
 readonly POLL_DURATION=5s
 
-readonly TOTAL_DURATION=7m
+readonly TOTAL_DURATION=6m
 
 # For consistency, which version of Kubernetes to run
-readonly KUBERNETES_VERSION=v1.18.3
+readonly KUBERNETES_VERSION=v1.17.3
 
 # How all tests will be identified
 readonly SESSION_ID="$(date +%Y%m%d-%H%M%S)-$$"
@@ -103,16 +103,18 @@ main() {
     echo "  >> Killing Docker for Desktop ..."
     osascript -e 'quit app "Docker"'
 
-    target="/tmp/minikube-${version}"
     driver=hyperkit
 
-    measure "idle" $i
-
    for version in ${VERSIONS}; do
-      echo "-> minikube ${version} --driver=${driver}"
-      time "${target}" start --driver "${driver}" --kubernetes-version=${KUBERNETES_VERSION} -p "${driver}$$" && measure "minikube_hyperkit_${version}" $i
+      target="/tmp/minikube-${version}"
+      echo "-> minikube ${version} --vm-driver=${driver}"
+      time "${target}" start --vm-driver "${driver}" --kubernetes-version=${KUBERNETES_VERSION} -p "${driver}$$" && measure "minikube_hyperkit_${version}" $i
+      "${target}" delete -p "${driver}$$"
       cleanup
    done
+
+   sleep 10
+   measure "idle" $i
  
   done ## iteration
 }
