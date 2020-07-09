@@ -105,14 +105,16 @@ main() {
 
     driver=hyperkit
 
-    measure "idle" $i
-
    for version in ${VERSIONS}; do
       target="/tmp/minikube-${version}"
-      echo "-> minikube ${version} --driver=${driver}"
-      time "${target}" start --driver "${driver}" --kubernetes-version=${KUBERNETES_VERSION} -p "${driver}$$" && measure "minikube_hyperkit_${version}" $i
+      echo "-> minikube ${version} --vm-driver=${driver}"
+      time "${target}" start --vm-driver "${driver}" --kubernetes-version=${KUBERNETES_VERSION} -p "${driver}$$" && measure "minikube_hyperkit_${version}" $i
+      "${target}" delete -p "${driver}$$"
       cleanup
    done
+
+   sleep 10
+   measure "idle" $i
  
   done ## iteration
 }
