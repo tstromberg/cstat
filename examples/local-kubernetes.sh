@@ -1,16 +1,16 @@
 #!/bin/bash
 #
-# Gather data comparing the overhead of multiple local Kubernetes 
+# Gather data comparing the overhead of multiple local Kubernetes (macOS only)
 readonly TESTS=$1
 
 # How many iterations to cycle through
-readonly TEST_ITERATIONS=5
+readonly TEST_ITERATIONS=10
 
 # How long to poll CPU usage for (each point is an average over this period)
 readonly POLL_DURATION=5s
 
 # How long to measure background usage for. 5 minutes too short, 10 minutes too long
-readonly TOTAL_DURATION=7m
+readonly TOTAL_DURATION=5m
 
 # How all tests will be identified
 readonly SESSION_ID="$(date +%Y%m%d-%H%M%S)-$$"
@@ -24,6 +24,12 @@ measure() {
   echo "  >> Current top processes by CPU:"
   top -n 3 -l 2 -s 2 -o cpu  | tail -n4 | awk '{ print $1 " " $2 " " $3 " " $4 }'
 
+  if [[ "${iteration}" == 0 ]]; then
+    echo "NOTE: dry-run iteration: will not record measurements"
+    cstat --poll "${POLL_DURATION}" --for "${POLL_DURATION}" --busy
+    return
+  fi
+
   echo ""
   echo "  >> Measuring ${name} and saving to ${filename} ..."
   cstat --poll "${POLL_DURATION}" --for "${TOTAL_DURATION}" --busy --header=false | tee "${filename}"
@@ -31,20 +37,14 @@ measure() {
 
 
 cleanup() {
-  echo "  >> Deleting local clusters ..."
-
-  # workaround delete hang w/ docker driver: https://github.com/kubernetes/minikube/issues/7657
-  minikube unpause 2>/dev/null >/dev/null
-
+  echo "  >> Deleting local clusters and Docker containers ..."
   minikube delete --all 2>/dev/null >/dev/null
-  k3d d 2>/dev/null >/dev/null
+  k3d cluster delete 2>/dev/null >/dev/null
   kind delete cluster 2>/dev/null >/dev/null
   docker stop $(docker ps -q) 2>/dev/null
   docker kill $(docker ps -q) 2>/dev/null
   docker rm $(docker ps -a -q) 2>/dev/null
-
-  sleep 5
-  pause_if_running_apps
+  sleep 2
 }
 
 pause_if_running_apps() {
@@ -77,9 +77,45 @@ pause_if_running_apps() {
   done
 }
 
+fail() {
+  local name=$1
+  local iteration=$2
+
+  echo '***********************************************************************'
+  echo "${name} failed on iteration ${iteration} - will not record measurement"
+  echo '***********************************************************************'
+
+  if [[ "${iteration}" == 0 ]]; then
+    echo "test environment appears invalid, exiting"
+    exit 90
+  fi
+}
+
+start_docker() {
+    local docker_up=0
+    local started=0
+
+    while [[ "${docker_up}" == 0 ]]; do
+      docker info >/dev/null && docker_up=1 || docker_up=0
+
+      if [[ "${docker_up}" == 0 && "${started}" == 0 ]]; then
+          echo ""
+          echo "  >> Starting Docker for Desktop ..."
+          open -a Docker
+          started=1
+      fi
+
+      sleep 1
+    done
+
+    # Give time for d4d Kubernetes to begin, if it's around
+    if [[ "${started}" == 1 ]]; then
+      sleep 15
+    fi
+}
+
 
 main() {
-  pause_if_running_apps
   echo "Session ID: ${SESSION_ID}"
   mkdir -p "results/${SESSION_ID}"
 
@@ -87,31 +123,37 @@ main() {
   k3d version || { echo "k3d version failed"; exit 1; }
   kind version || { echo "kind version failed"; exit 1; }
   minikube version || { echo "minikube version failed"; exit 1; }
-  if [[ -x ./out/minikube ]]; then
-    ./out/minikube version || { echo "./out/minikube version failed"; exit 1; }
-  fi
   docker version
   echo "----------------------------------------------------"
   echo ""
 
-  for i in $(seq 1 ${TEST_ITERATIONS}); do
+  echo "Turning on Wi-Fi for initial downloads"
+  networksetup -setairportpower Wi-Fi on
+
+  for i in $(seq 0 ${TEST_ITERATIONS}); do
     echo ""
     echo "==> session ${SESSION_ID}, iteration $i"
+
+
     cleanup
-    echo "  >> Killing Docker for Desktop ..."
-    osascript -e 'quit app "Docker"'
 
-    # Measure the background noise on this system
-    sleep 15
-    measure idle $i
+    if [[ "$i" = 0 ]]; then
+      echo "NOTE: The 0 iteration is an unmeasured dry run!"
+    else
+      pause_if_running_apps
+      echo "Turning off Wi-Fi to remove background noise"
+      networksetup -setairportpower Wi-Fi off
 
-    echo ""
-    echo "  >> Starting Docker for Desktop ..."
-    open -a Docker
+      echo "  >> Killing Docker for Desktop ..."
+      osascript -e 'quit app "Docker"'
 
-    # Sleep because we are too lazy to detect when Docker is up
-    sleep 45
-    # Run cleanup once more now that Docker is online
+      # Measure the background noise on this system
+      sleep 15
+      measure idle $i
+    fi
+
+    # Run cleanup once we can assert that Docker is up
+    start_docker
     cleanup
 
     docker_k8s=0
@@ -127,17 +169,17 @@ main() {
     if [[ "${docker_k8s}" == 0 ]]; then
       echo ""
       echo "-> k3d"
-      time k3d c && measure k3d $i
+      time k3d cluster create && measure k3d $i || fail k3d $i
       cleanup
 
       echo ""
       echo "-> kind"
-      time kind create cluster && measure kind $i
+      time kind create cluster && measure kind $i || fail kind $i
       cleanup
     fi
 
-    #  hyperkit virtualbox vmware
-    for driver in docker hyperkit virtualbox vmware; do
+    # test different drivers
+    for driver in docker hyperkit; do
       if [[ "${docker_k8s}" == 1 && "${driver}" == "docker" ]]; then
         echo "  >> Quitting Docker for Desktop ..."
         osascript -e 'quit app "Docker"'
@@ -146,24 +188,14 @@ main() {
 
       echo ""
       echo "-> minikube --driver=${driver}"
-      time minikube start --driver "${driver}" && measure "minikube.${driver}" $i
-      # minikube pause && measure "minikube_paused.${driver}" $i
+      time minikube start --driver "${driver}" && measure "minikube.${driver}" $i || fail "minikube.${driver}" $i
       cleanup
-
-      if [[ -x "./out/minikube" ]]; then
-        echo "-> ./out/minikube --driver=${driver}"
-        time ./out/minikube start --driver "${driver}" && measure "out.minikube.${driver}" $i
-        # minikube pause && measure "out.minikube_paused.${driver}" $i
-        cleanup
-      fi
 
       # We won't be needing docker for the remaining tests this iteration
       if [[ "${driver}" == "docker" ]]; then
         echo "  >> Quitting Docker for Desktop ..."
         osascript -e 'quit app "Docker"'
       fi
-
-
     done ## driver
   done ## iteration
 }
