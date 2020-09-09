@@ -1,3 +1,4 @@
+// cstat records CPU busy states. Similar to iostat, but with greater precision.
 package main
 
 import (
