@@ -2,8 +2,6 @@
 
 A more civilized iostat, with 100x more precision, and exportable to CSV format.
 
-This has only been tested so far on macOS.
-
 ```
 $ cstat
 elapsed	busy%	sys%	user%	nice%	idle%
