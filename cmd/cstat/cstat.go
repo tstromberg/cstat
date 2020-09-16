@@ -60,7 +60,7 @@ func main() {
 
 func header() {
 	if *showHeader {
-		fmt.Printf("elapsed\tbusy%%\tsys%%\tuser%%\tnice%%\tidle%%\n")
+		fmt.Printf("elapsed\tbusy%%\tsys%%\tuser%%\tnice%%\tidle%%\twait%%\n")
 	}
 }
 
@@ -74,13 +74,14 @@ func display(psta []cpu.TimesStat, sta []cpu.TimesStat, start time.Time, last ti
 	if *justBusy {
 		fmt.Printf("%.3f\n", float64(busy)/float64(total)*100)
 	} else {
-		fmt.Printf("%d\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f\n",
+		fmt.Printf("%d\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f\n",
 			int64(last.Sub(start).Milliseconds())/1000,
 			float64(busy)/float64(total)*100,
 			float64(st.System-pst.System)/float64(total)*100,
 			float64(st.User-pst.User)/float64(total)*100,
 			float64(st.Nice-pst.Nice)/float64(total)*100,
 			float64(st.Idle-pst.Idle)/float64(total)*100,
+			float64(st.Iowait-pst.Iowait)/float64(total)*100,
 		)
 	}
 }
