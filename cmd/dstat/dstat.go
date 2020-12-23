@@ -36,7 +36,17 @@ func main() {
 	flag.Parse()
 
 	if len(devices) == 0 {
-		panic("--device required")
+		partitions, err := disk.Partitions(false)
+		if err != nil {
+			panic(err)
+		}
+		for _, part := range partitions {
+			// skip the loop devices
+			if part.Fstype == "squashfs" {
+				continue
+			}
+			devices = append(devices, part.Device)
+		}
 	}
 
 	header()
