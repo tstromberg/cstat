@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/shirou/gopsutil/cpu"
+	"github.com/tstromberg/cstat/pkg/cstat"
 )
 
 var duration = flag.Duration("for", 365*24*time.Hour, "How long to poll until exiting")
@@ -22,40 +22,29 @@ func main() {
 	flag.Parse()
 
 	header()
-	start := time.Now()
-	lastSample := start
-	sst, err := cpu.Times(false)
-	if err != nil {
-		panic(err)
-	}
 
-	pst := sst
-	sigs := make(chan os.Signal, 1)
-	done := make(chan bool, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-
+	runner := cstat.NewRunner(*duration, *poll)
+	var lastResult *cstat.Result
 	go func() {
-		<-sigs
-		total(sst, pst, start, lastSample)
-		os.Exit(0)
-		done <- true
+		lastResult = runner.Run()
 	}()
 
-	for {
-		if time.Since(start) > *duration {
-			total(sst, pst, start, lastSample)
-			os.Exit(0)
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	var terminated bool
+	for !terminated {
+		select {
+		case <-sigs:
+			runner.Stop()
+		case result, ok := <-runner.C():
+			if !ok {
+				terminated = true
+				break
+			}
+			display(result)
 		}
-		time.Sleep(*poll)
-
-		st, err := cpu.Times(false)
-		if err != nil {
-			panic(err)
-		}
-		lastSample = time.Now()
-		display(pst, st, start, lastSample)
-		pst = st
 	}
+	total(lastResult)
 }
 
 func header() {
@@ -64,31 +53,26 @@ func header() {
 	}
 }
 
-func display(psta []cpu.TimesStat, sta []cpu.TimesStat, start time.Time, last time.Time) {
-	pst := psta[0]
-	st := sta[0]
-	idle := st.Idle - pst.Idle
-	total := (st.User + st.Nice + st.System + st.Idle) - (pst.User + pst.Nice + pst.System + pst.Idle)
-	busy := total - idle
+func display(result *cstat.Result) {
 
 	if *justBusy {
-		fmt.Printf("%.3f\n", float64(busy)/float64(total)*100)
+		fmt.Printf("%.3f\n", result.Busy*100)
 	} else {
 		fmt.Printf("%d\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f\n",
-			int64(last.Sub(start).Milliseconds())/1000,
-			float64(busy)/float64(total)*100,
-			float64(st.System-pst.System)/float64(total)*100,
-			float64(st.User-pst.User)/float64(total)*100,
-			float64(st.Nice-pst.Nice)/float64(total)*100,
-			float64(st.Idle-pst.Idle)/float64(total)*100,
+			int64(result.Elapsed.Milliseconds())/1000,
+			result.Busy*100,
+			result.System*100,
+			result.User*100,
+			result.Nice*100,
+			result.Idle*100,
 		)
 	}
 }
 
-func total(pst []cpu.TimesStat, st []cpu.TimesStat, start time.Time, last time.Time) {
+func total(result *cstat.Result) {
 	if *showTotal {
-		fmt.Printf("\n\nmeasured average over %s\n", last.Sub(start))
+		fmt.Printf("\n\nmeasured average over %s\n", result.Elapsed)
 		header()
-		display(pst, st, start, last)
+		display(result)
 	}
 }
