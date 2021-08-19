@@ -1,3 +1,5 @@
+// package cstat records CPU busy states. Similar to iostat, but with greater
+// precision.
 package cstat
 
 import (
@@ -6,35 +8,45 @@ import (
 	"github.com/shirou/gopsutil/cpu"
 )
 
+// Result is a structured result from a single poll.
 type Result struct {
 	Elapsed                               time.Duration
 	Busy, System, User, Nice, Idle, Total float64
 	LastSample                            time.Time
 }
 
+// Runner is responsible for running the statistic polls.
 type Runner struct {
-	duration, poll time.Duration
-	c              chan *Result
-	stop           chan struct{}
+	poll time.Duration
+	c    chan *Result
+	stop chan struct{}
 }
 
-func NewRunner(duration, poll time.Duration) *Runner {
+// NewRunner creates a new Runner that polls for CPU statistics periodically
+// for a given duration.
+func NewRunner(poll time.Duration) *Runner {
 	return &Runner{
-		duration: duration,
-		poll:     poll,
-		c:        make(chan *Result),
-		stop:     make(chan struct{}),
+		poll: poll,
+		c:    make(chan *Result),
+		stop: make(chan struct{}),
 	}
 }
 
+// C returns the channel that the Runner sends intermediate poll Results to.
 func (r *Runner) C() <-chan *Result {
 	return r.c
 }
 
+// Stop stops the Runner.
 func (r *Runner) Stop() {
 	close(r.stop)
 }
 
+// Run starts the poll cycle until Stop is called. Results are send to r.c
+// whenever available. The caller is responsible for consuming the Results
+//  from r.c once they're available.
+//
+// It returns the total Result from the very start.
 func (r *Runner) Run() *Result {
 	defer close(r.c)
 	start := time.Now()
@@ -51,10 +63,6 @@ func (r *Runner) Run() *Result {
 		case <-r.stop:
 			return makeResult(sst, pst, start, lastSample)
 		case <-time.After(r.poll):
-			if time.Since(start) > r.duration {
-				return makeResult(sst, pst, start, lastSample)
-			}
-
 			st, err := cpu.Times(false)
 			if err != nil {
 				panic(err)

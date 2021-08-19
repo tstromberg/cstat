@@ -24,7 +24,7 @@ func main() {
 
 	header()
 
-	runner := cstat.NewRunner(*duration, *poll)
+	runner := cstat.NewRunner(*poll)
 	var (
 		lastResult *cstat.Result
 		wg         sync.WaitGroup
@@ -37,20 +37,28 @@ func main() {
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-	var terminated bool
-	for !terminated {
+
+	// Start a goroutine to listen for signals and to wait for *duration,
+	// whichever comes first, to stop the runner.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
 		select {
 		case <-sigs:
-			runner.Stop()
-		case result, ok := <-runner.C():
-			if !ok {
-				terminated = true
-				break
-			}
-			display(result)
+		case <-time.After(*duration):
 		}
+		runner.Stop()
+	}()
+
+	// Consumer poll results.
+	for result := range runner.C() {
+		display(result)
 	}
+
+	// Wait for Runner to finish.
 	wg.Wait()
+
+	// Print the total result.
 	total(lastResult)
 }
 
