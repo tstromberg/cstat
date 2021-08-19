@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -24,8 +25,13 @@ func main() {
 	header()
 
 	runner := cstat.NewRunner(*duration, *poll)
-	var lastResult *cstat.Result
+	var (
+		lastResult *cstat.Result
+		wg         sync.WaitGroup
+	)
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		lastResult = runner.Run()
 	}()
 
@@ -44,6 +50,7 @@ func main() {
 			display(result)
 		}
 	}
+	wg.Wait()
 	total(lastResult)
 }
 
