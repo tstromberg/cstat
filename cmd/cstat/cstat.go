@@ -2,6 +2,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -29,25 +30,27 @@ func main() {
 		lastResult *cstat.Result
 		wg         sync.WaitGroup
 	)
+	ctx, cancel := context.WithTimeout(context.Background(), *duration)
+	defer cancel()
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		lastResult = runner.Run()
+		lastResult = runner.Run(ctx)
 	}()
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
-	// Start a goroutine to listen for signals and to wait for *duration,
-	// whichever comes first, to stop the runner.
+	// Start a goroutine to listen for signals and to wait for context
+	// cancellation, whichever comes first, to stop the runner.
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		select {
 		case <-sigs:
-		case <-time.After(*duration):
+			cancel()
+		case <-ctx.Done():
 		}
-		runner.Stop()
 	}()
 
 	// Consumer poll results.

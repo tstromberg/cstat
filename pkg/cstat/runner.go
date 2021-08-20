@@ -3,6 +3,7 @@
 package cstat
 
 import (
+	"context"
 	"time"
 
 	"github.com/shirou/gopsutil/cpu"
@@ -19,7 +20,6 @@ type Result struct {
 type Runner struct {
 	poll time.Duration
 	c    chan *Result
-	stop chan struct{}
 }
 
 // NewRunner creates a new Runner that polls for CPU statistics periodically
@@ -28,7 +28,6 @@ func NewRunner(poll time.Duration) *Runner {
 	return &Runner{
 		poll: poll,
 		c:    make(chan *Result),
-		stop: make(chan struct{}),
 	}
 }
 
@@ -37,17 +36,12 @@ func (r *Runner) C() <-chan *Result {
 	return r.c
 }
 
-// Stop stops the Runner.
-func (r *Runner) Stop() {
-	close(r.stop)
-}
-
 // Run starts the poll cycle until Stop is called. Results are send to r.c
 // whenever available. The caller is responsible for consuming the Results
 //  from r.c once they're available.
 //
 // It returns the total Result from the very start.
-func (r *Runner) Run() *Result {
+func (r *Runner) Run(ctx context.Context) *Result {
 	defer close(r.c)
 	start := time.Now()
 	lastSample := start
@@ -60,7 +54,7 @@ func (r *Runner) Run() *Result {
 
 	for {
 		select {
-		case <-r.stop:
+		case <-ctx.Done():
 			return makeResult(sst, pst, start, lastSample)
 		case <-time.After(r.poll):
 			st, err := cpu.Times(false)
