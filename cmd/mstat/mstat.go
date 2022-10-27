@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/shirou/gopsutil/mem"
+	"github.com/shirou/gopsutil/v3/mem"
 )
 
 var duration = flag.Duration("for", 365*24*time.Hour, "How long to poll until exiting")
@@ -73,10 +73,10 @@ func displayMem(st *mem.VirtualMemoryStat, start time.Time, last time.Time) {
 			int64(last.Sub(start).Milliseconds())/1000,
 			float64(st.Total)/unit,
 			float64(st.Used)/unit,
-			float64(st.Free)/unit, // Linux specific
-			float64(st.Shared)/unit, // Linux specific
+			float64(st.Free)/unit,    // Linux specific
+			float64(st.Shared)/unit,  // Linux specific
 			float64(st.Buffers)/unit, // Linux specific
-			float64(st.Cached)/unit, // Linux specific
+			float64(st.Cached)/unit,  // Linux specific
 			float64(st.Available)/unit,
 		)
 	}

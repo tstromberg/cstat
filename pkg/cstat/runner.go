@@ -6,7 +6,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/shirou/gopsutil/cpu"
+	"github.com/shirou/gopsutil/v3/cpu"
 )
 
 // Result is a structured result from a single poll.
@@ -38,7 +38,7 @@ func (r *Runner) C() <-chan *Result {
 
 // Run starts the poll cycle until Stop is called. Results are send to r.c
 // whenever available. The caller is responsible for consuming the Results
-//  from r.c once they're available.
+// from r.c once they're available.
 //
 // It returns the total Result from the very start.
 func (r *Runner) Run(ctx context.Context) *Result {
