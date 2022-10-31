@@ -14,4 +14,4 @@ cstat-to-csv: ./cmd/cstat-to-csv/cstat-to-csv.go
 	$(GO) build -o $@ $^
 
 clean:
-	$(RM) cstat cstat-to-csv
+	$(RM) cstat cstat-to-csv mstat
